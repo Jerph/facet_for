@@ -1,176 +1,273 @@
 require "facet_for/version"
+require "facet_for/form_builder"
+require "facet_for/facet_helper"
 
-class ActionView::Helpers::FormBuilder
-  include ActionView::Helpers::TagHelper
-  include ActionView::Helpers::FormTagHelper
-  include ActionView::Helpers::FormOptionsHelper
-  include ActionView::Helpers::CaptureHelper
-  include ActionView::Helpers::AssetTagHelper
+module FacetFor
 
-  def facet_for(column, *args)
-    options = args.extract_options!
+  PREDICATES = [
+                ['Contains', :cont],
+                ['Doesn\'t Contain', :not_cont],
+                ['Starts With', :start],
+                ['Doesn\'t Start With', :not_start],
+                ['Ends With', :end],
+                ['Doesn\'t End With', :not_end],
+                ['Between', :between],
+                ['Is Null', :null],
+                ['Is Not Null', :not_null],
+                ['Collection', :collection]
+               ]
 
-    facet_html = ''
-
-    # Here, we collect information about the facet. What the user doesn't
-    # supply, we'll make our best guess for.
-
-    facet = { }
-    facet[:model] = @object.klass
-
-    facet[:column] = facet[:model].content_columns.select {                                      |x| x.name == column.to_s }
-
-    # Information about the column. This is used to generate the default
-    # label, and to pass the right selector to the Ransack fields.
-
-    facet[:column_name] = options[:column_name]
-    facet[:column_type] = options[:column_type]
-
-    # This is the type of field we will render. If this isn't provided, we'll
-    # determine this based on facet_column_type
-
-    facet[:type] = options[:type]
-
-    # In the specific case of facet_type == :collection, we'll allow the user
-    # to specify their own collection. If it's an association, we'll attempt
-    # to provide one.
-
-    facet[:collection] = options[:collection]
-
-    if facet[:column].empty? # facet doesn't exist
-
-      # Is it an association?
-      #
-      # We check for :singular_name, :plural_name and :singular_id
-
-      if association = associations_for(facet[:model]).select { |x|
-          x.plural_name == column.to_s or
-          x.plural_name.singularize == column.to_s or
-          x.primary_key_name == column.to_s }.uniq
-
-        if association.first.macro == :has_many
-
-          # For a has_many relationship, we want the plural name with _id.
-          # Ransack will then look at the _id column for the associated model.
-          # This won't work properly on models with nonstandard id column
-          # names. That's a problem, but whatevs for the time being.
-
-          facet[:column_name] = "#{association.first.plural_name}_id"
-
-        elsif association.first.macro == :belongs_to
-
-          # If we're dealing with belongs_to, we can assume we just want
-          # to look at the foreign key on the current model. Much simpler.
-
-          facet[:column_name] = association.first.foreign_key
-
-        end
-
-        # By default, we want to use a select box with a collection of
-        # what this model has_many of. If the user has specified something,
-        # we'll run with what they specified.
-
-        facet[:type] = facet[:type] || :collection
-
-        # If the user hasn't specified a collection, we'll provide one now
-        # based on this association
-
-        facet[:collection] = facet[:collection] || association.first.klass.all
-
-      else
-        return # nothing found
-      end
-    else
-
-      # We found a column. Let's yank some useful information out of it
-
-      facet[:column] = facet[:column].first
-      facet[:column_name] = facet[:column].name
-      facet[:column_type] = facet[:column_type] || facet[:column].type
-    end
-
-    facet[:type] = facet[:type] || default_facet_type(facet)
-
-
-    # Insert our label first
-
-    facet_html = "<div class=\"label #{additional_classes(facet)}\">"
-
-    if options[:label]
-      facet_html << self.label(column, options[:label])
-    else
-      facet_html << default_label_for_facet(facet)
-    end
-
-    facet_html << "</div>"
-
-    # And now the fields
-
-    facet_html << render_facet_for(facet)
-
-    facet_html.html_safe
-  end
-
-  # If the user doesn't pass options[:label], we'll build a default label
-  # based on the type of facet we're rendering.
-
-  def default_label_for_facet(facet)
-    case facet[:type]
-    when :cont
-      return self.label("#{facet[:column_name]}_cont".to_sym)
-    else
-      return self.label("#{facet[:column_name]}")
-    end
-  end
-
-  # Now that we have our type, we can render the actual form field for
-  # Ransack
-
-  def render_facet_for(facet)
-
-    facet_html = "<div class=\"input #{additional_classes(facet)}\">"
-
-    case facet[:type]
-    when :cont
-      facet_html << self.text_field("#{facet[:column_name]}_cont".to_sym)
-    when :collection
-      facet_html << self.collection_select("#{facet[:column_name]}_eq".to_sym, facet[:collection], :id, :to_s, :include_blank => true)
-    when :between
-      facet_html << "From "
-      facet_html << self.text_field("#{facet[:column_name]}_gteq".to_sym, :size => 11)
-      facet_html << "To "
-      facet_html << self.text_field("#{facet[:column_name]}_lteq".to_sym, :size => 11)
-    when :gteq
-      facet_html << self.text_field("#{facet[:column_name]}_gteq".to_sym, :size => 5)
-    when :lteq
-      facet_html << self.text_field("#{facet[:column_name]}_gteq".to_sym, :size => 5)
-    end
-
-    facet_html << "</div>"
-    facet_html
-  end
-
-  # If no options[:type] is specified, we'll look at the column type for
-  # the column in the model and make an educated guess.
-
-  def default_facet_type(facet)
-
-    case facet[:column_type]
-    when :string, :text
-      return :cont
-    when :datetime, :date, :float, :integer, :double
-      return :between
-    end
-  end
-
-  def additional_classes(facet)
-    additional_class = "#{facet[:type]} #{facet[:column_type]}"
+  def self.predicates
+    PREDICATES
   end
 
   # We can use reflections to determine has_many and belongs_to associations
 
-  def associations_for(model)
-    model.reflections.values
+  def self.create_facet(*args)
+    options = args.extract_options!
+
+    @facet = Facet.new(options)
+    @facet.render_facet.html_safe
   end
 
+
+  def self.column_options(q)
+    column_options = []
+    column_options.push([q.klass.to_s, options_for_model(q.klass)])
+
+    q.context.searchable_associations.each do |association|
+      association_model = association.camelcase.singularize.constantize
+      column_options.push([association_model.to_s, options_for_model(association_model, association)])
+    end
+
+    column_options
+  end
+
+  def self.field_options(q)
+    field_options = options_for_model(q.klass) | q.context.searchable_associations.map { |a| [a.titleize, a.to_sym] }
+
+    field_options
+  end
+
+  def self.options_for_model(model, association = nil, grouped = false)
+    options = []
+    preface = ''
+
+    if association # preface field names for cross model displaying
+      preface = "#{association}."
+    end
+
+    if model.ransackable_attributes
+      options = model.ransackable_attributes.map { |a| [a.titleize, "#{preface}#{a}".to_sym] }
+    end
+
+    options
+  end
+
+  class Facet
+    include ActionView::Helpers::TagHelper
+    include ActionView::Helpers::FormTagHelper
+    include ActionView::Helpers::FormOptionsHelper
+    include ActionView::Helpers::CaptureHelper
+    include ActionView::Helpers::AssetTagHelper
+
+    attr_accessor :facet
+
+    def initialize(facet = {})
+      @facet = facet
+
+      # If they didn't provide a model, try and use the search object
+
+      if @facet[:object] && @facet[:model].nil?
+        @facet[:model] = @facet[:object].klass
+      end
+
+      @facet[:column] = @facet[:model].content_columns.select {                                      |x| x.name == @facet[:column_name].to_s }
+
+      if @facet[:column].empty? # facet doesn't exist
+
+        # Is it an association?
+        #
+        # We check for :singular_name, :plural_name and :singular_id
+
+        if association = associations.select { |x|
+          x.plural_name == @facet[:column_name].to_s or
+          x.plural_name.singularize == @facet[:column_name].to_s or
+          x.primary_key_name == @facet[:column_name].to_s }.uniq and association.count > 0
+
+          if association.first.macro == :has_many
+
+            # For a has_many relationship, we want the plural name with _id.
+            # Ransack will then look at the _id column for the associated model.
+            # This won't work properly on models with nonstandard id column
+            # names. That's a problem, but whatevs for the time being.
+
+            @facet[:column_name] = "#{association.first.plural_name}_id"
+
+          elsif association.first.macro == :belongs_to
+
+            # If we're dealing with belongs_to, we can assume we just want
+            # to look at the foreign key on the current model. Much simpler.
+
+            @facet[:column_name] = association.first.foreign_key
+
+          end
+
+          # By default, we want to use a select box with a collection of
+          # what this model has_many of. If the user has specified something,
+          # we'll run with what they specified.
+
+          @facet[:type] = @facet[:type] || :collection
+
+          # If the user hasn't specified a collection, we'll provide one now
+          # based on this association
+
+          @facet[:collection] = @facet[:collection] || association.first.klass.all
+        end
+      else
+
+        # We found a column. Let's yank some useful information out of it
+        @facet[:column] = @facet[:column].first
+        @facet[:column_name] = @facet[:column].name
+        @facet[:column_type] = @facet[:column_type] || @facet[:column].type
+      end
+
+      @facet[:type] = @facet[:type] || default_facet_type
+
+    end
+
+    def associations
+      @facet[:model].reflections.values
+    end
+
+    # If the user doesn't pass options[:label], we'll build a default label
+    # based on the type of facet we're rendering.
+
+    def default_label_for_facet
+      case @facet[:type]
+      when :true, :false
+        return ''
+      when :null
+        return label("#{@facet[:column_name]}_null",
+                     "#{@facet[:column_name].to_s.humanize} Is Null?")
+      when :not_null
+        return label("#{@facet[:column_name]}_not_null",
+                     "#{@facet[:column_name].to_s.humanize} Is Not Null?")
+      when :cont
+        return label("#{@facet[:column_name]}_cont",
+                     "#{@facet[:column_name].to_s.humanize} Contains")
+      when :not_cont
+        return label("#{@facet[:column_name]}_not_cont",
+                     "#{@facet[:column_name].to_s.humanize} Doesn't Contain")
+      when :start
+        return label("#{@facet[:column_name]}_start",
+                     "#{@facet[:column_name].to_s.humanize} Starts With")
+      when :not_start
+        return label("#{@facet[:column_name]}_not_start",
+                     "#{@facet[:column_name].to_s.humanize} Doesn't Start With")
+      when :end
+        return label("#{@facet[:column_name]}_end",
+                     "#{@facet[:column_name].to_s.humanize} Ends With")
+      when :not_end
+        return label("#{@facet[:column_name]}_not_end",
+                     "#{@facet[:column_name].to_s.humanize} Doesn't End With")
+      when :between
+        return label("#{@facet[:column_name]}",
+                     "#{@facet[:column_name].to_s.humanize} Between")
+      when :gte
+        return label("#{@facet[:column_name]}_gte",
+                     "#{@facet[:column_name].to_s.humanize} Greater Than")
+      when :lte
+        return label("#{@facet[:column_name]}_lte",
+                     "#{@facet[:column_name].to_s.humanize} Less Than")
+      else
+        return label("#{@facet[:column_name]}")
+      end
+    end
+
+    # Now that we have our type, we can render the actual form field for
+    # Ransack
+
+    def render_facet
+
+      # Insert our label first
+
+      facet_html = "<div class=\"facet_label #{additional_classes}\">"
+
+      if @facet[:label]
+        facet_html << label("#{@facet[:column_name]}", @facet[:label])
+      else
+        facet_html << default_label_for_facet
+      end
+
+      facet_html << "</div>"
+
+      # And now the fields
+
+      facet_html << "<div class=\"facet_input #{additional_classes}\">"
+
+      case @facet[:type]
+      when :cont, :not_cont, :start, :not_start, :end, :not_end, :gteq, :lteq
+        facet_html << text_field
+      when :collection
+        facet_html << facet_collection
+      when :null, :not_null, :true, :false
+        facet_html << check_box
+      when :between
+        facet_html << text_field(:predicate => :gteq)
+        facet_html << "<span class=\"facet_divider\">&mdash;</span>"
+        facet_html << text_field(:predicate => :lteq)
+      end
+
+      facet_html << "</div>"
+      facet_html
+    end
+
+    # If no options[:type] is specified, we'll look at the column type for
+    # the column in the model and make an educated guess.
+
+    def default_facet_type
+
+      case @facet[:column_type]
+      when :string, :text
+        return :cont
+      when :datetime, :date, :float, :integer, :double
+        return :between
+      end
+    end
+
+    def additional_classes
+      additional_class = "#{@facet[:type]} #{@facet[:column_type]}"
+    end
+
+    def text_field(options = {})
+      predicate = options[:predicate] || @facet[:type]
+      name = "#{@facet[:column_name]}_#{predicate.to_s}"
+
+      if @facet[:params] and @facet[:params][:q]
+        value = @facet[:params][:q][name.to_sym]
+      end
+
+      text_field_tag self.name_for(name), value
+    end
+
+    def check_box
+      check_box_tag self.name_for("#{@facet[:column_name]}_#{@facet[:type].to_s}")
+    end
+
+    def facet_collection
+      collection_select @facet[:object_name].to_sym,
+        "#{@facet[:column_name]}_eq".to_sym, @facet[:collection],
+        :id, :to_s, :include_blank => true
+    end
+
+    def label(string_name, string_label = nil)
+      display_label = string_label || string_name.humanize
+      label_tag self.name_for(string_name), display_label
+    end
+
+    def name_for(string_name)
+      "#{@facet[:object_name]}[#{string_name}]".to_sym
+    end
+  end
 end
