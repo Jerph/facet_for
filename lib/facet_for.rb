@@ -153,6 +153,8 @@ module FacetFor
       when :not_null
         return label("#{@facet[:column_name]}_not_null",
                      "#{@facet[:column_name].to_s.humanize} Is Not Null?")
+      when :cont_any
+        return ''
       when :cont
         return label("#{@facet[:column_name]}_cont",
                      "#{@facet[:column_name].to_s.humanize} Contains")
@@ -209,6 +211,15 @@ module FacetFor
       case @facet[:type]
       when :cont, :not_cont, :start, :not_start, :end, :not_end, :gteq, :lteq
         facet_html << text_field
+      when :cont_any
+        @facet[:collection].each do |check|
+          facet_html << "<div class=\"facet_input cont_any check_box\">"
+          facet_html << check_box(check)
+          facet_html << label(self.name_for("#{@facet[:column_name]}_#{@facet[:type].to_s}", true), check)
+          facet_html << "</div>"
+        end
+
+        facet_html
       when :collection
         facet_html << facet_collection
       when :null, :not_null, :true, :false
@@ -244,21 +255,27 @@ module FacetFor
       predicate = options[:predicate] || @facet[:type]
       name = "#{@facet[:column_name]}_#{predicate.to_s}"
 
-      if @facet[:params] and @facet[:params][:q]
-        value = @facet[:params][:q][name.to_sym]
-      end
-
-      text_field_tag self.name_for(name), value
+      text_field_tag self.name_for(name), @facet[:object].send(name)
     end
 
-    def check_box
-      check_box_tag self.name_for("#{@facet[:column_name]}_#{@facet[:type].to_s}")
+    def check_box(value = "1")
+      name = "#{@facet[:column_name]}_#{@facet[:type]}"
+      return check_box_tag(self.name_for(name, true), value, check_box_checked(value))
+    end
+
+    def check_box_checked(value = "1")
+      name = "#{@facet[:column_name]}_#{@facet[:type]}"
+      selected = @facet[:object].send(name)
+
+      return (!selected.nil? and selected.include?(value))
+
     end
 
     def facet_collection
-      collection_select @facet[:object_name].to_sym,
-        "#{@facet[:column_name]}_eq".to_sym, @facet[:collection],
-        :id, :to_s, :include_blank => true
+      name = "#{@facet[:column_name]}_#{@facet[:type]}"
+      selected = @facet[:object].send(name)
+
+      select_tag self.name_for(name), options_for_collection_select(@facet[:collection], :id, :to_s, selected), :include_blank => true
     end
 
     def label(string_name, string_label = nil)
@@ -266,8 +283,12 @@ module FacetFor
       label_tag self.name_for(string_name), display_label
     end
 
-    def name_for(string_name)
-      "#{@facet[:object_name]}[#{string_name}]".to_sym
+    def name_for(string_name, array = false)
+      name = "#{@facet[:object_name]}[#{string_name}]"
+      name += '[]' if array
+
+      name.to_sym
     end
+
   end
 end
