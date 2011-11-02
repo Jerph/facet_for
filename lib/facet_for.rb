@@ -272,10 +272,10 @@ module FacetFor
     end
 
     def facet_collection
-      name = "#{@facet[:column_name]}_#{@facet[:type]}"
+      name = "#{@facet[:column_name]}_eq"
       selected = @facet[:object].send(name)
 
-      select_tag self.name_for(name), options_for_collection_select(@facet[:collection], :id, :to_s, selected), :include_blank => true
+      select_tag self.name_for(name), options_from_collection_for_select(@facet[:collection], :id, :to_s, selected), :include_blank => true
     end
 
     def label(string_name, string_label = nil)
