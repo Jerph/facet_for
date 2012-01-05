@@ -153,9 +153,7 @@ module FacetFor
       when :not_null
         return label("#{@facet[:column_name]}_not_null",
                      "#{@facet[:column_name].to_s.humanize} Is Not Null?")
-      when :cont_any
-        return ''
-      when :cont
+      when :cont, :cont_any
         return label("#{@facet[:column_name]}_cont",
                      "#{@facet[:column_name].to_s.humanize} Contains")
       when :not_cont
@@ -212,10 +210,26 @@ module FacetFor
       when :cont, :not_cont, :start, :not_start, :end, :not_end, :gteq, :lteq
         facet_html << text_field
       when :cont_any
+        collection_type = :array
+        if @facet[:collection].first.class == 'String'
+          collection_type = :string
+        end
+
         @facet[:collection].each do |check|
           facet_html << "<div class=\"facet_input cont_any check_box\">"
-          facet_html << check_box(check)
-          facet_html << label(self.name_for("#{@facet[:column_name]}_#{@facet[:type].to_s}", true), check)
+
+          if collection_type == :array
+            facet_html << check_box(check[1])
+          else
+            facet_html << check_box(check)
+          end
+
+          if collection_type == :array
+            facet_html << label(self.name_for("#{@facet[:column_name]}_#{@facet[:type].to_s}", true), check[0])
+          else
+            facet_html << label(self.name_for("#{@facet[:column_name]}_#{@facet[:type].to_s}", true), check)
+          end
+
           facet_html << "</div>"
         end
 
@@ -275,7 +289,18 @@ module FacetFor
       name = "#{@facet[:column_name]}_eq"
       selected = @facet[:object].send(name)
 
-      select_tag self.name_for(name), options_from_collection_for_select(@facet[:collection], :id, :to_s, selected), :include_blank => true
+      if @facet[:collection].class == Array and
+          @facet[:collection].first.class == String
+
+        return select_tag self.name_for(name),
+        options_for_select(@facet[:collection], selected),
+        :include_blank => true
+      else
+        return select_tag self.name_for(name),
+        options_from_collection_for_select(@facet[:collection], :id, :to_s,
+                                           selected), :include_blank => true
+      end
+
     end
 
     def label(string_name, string_label = nil)
