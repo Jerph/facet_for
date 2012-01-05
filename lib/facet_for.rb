@@ -101,7 +101,7 @@ module FacetFor
             # Ransack will then look at the _id column for the associated model.
             # This won't work properly on models with nonstandard id column
             # names. That's a problem, but whatevs for the time being.
-
+            @facet[:association_name] = "#{association.first.plural_name}"
             @facet[:column_name] = "#{association.first.plural_name}_id"
 
           elsif association.first.macro == :belongs_to
@@ -109,6 +109,7 @@ module FacetFor
             # If we're dealing with belongs_to, we can assume we just want
             # to look at the foreign key on the current model. Much simpler.
 
+            @facet[:association_name] = association.first.name
             @facet[:column_name] = association.first.foreign_key
 
           end
@@ -122,7 +123,9 @@ module FacetFor
           # If the user hasn't specified a collection, we'll provide one now
           # based on this association
 
-          @facet[:collection] = @facet[:collection] || association.first.klass.all
+          @facet[:collection] = @facet[:model].joins(@facet[:association_name].to_sym).select("DISTINCT #{@facet[:column_name]}").where("#{@facet[:column_name]} IS NOT NULL").map { |m| m.send(@facet[:association_name].to_sym) }
+
+#          @facet[:collection] = @facet[:collection] || association.first.klass.all
         end
       else
 
