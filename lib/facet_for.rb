@@ -283,22 +283,41 @@ module FacetFor
     def check_box(value = "1")
       name = "#{@facet[:column_name]}_#{@facet[:type]}"
 
+
+
       if @facet[:type] == :cont_any
         check_box_label =  label_tag(self.name_for(name, true),
                                      value.to_s.humanize)
+        check_box_name = self.name_for(name, true)
       else
-        check_box_label =  label_tag(self.name_for(name, true),
-                                     @facet[:column_name].to_s.humanize)
+
+        label_value = @facet[:column_name].to_s.humanize
+
+        case @facet[:type]
+        when :false
+          label_value = "Is Not #{label_value}"
+        when :null
+          label_value += "Is Null"
+        when :not_null
+          label_value += "Is Not Null"
+        end
+
+        check_box_label =  label_tag(self.name_for(name, true), label_value)
+        check_box_name = self.name_for(name, false)
       end
 
-      check_box_tag(self.name_for(name, true), value, check_box_checked(value)) + check_box_label
+      check_box_tag(check_box_name, value, check_box_checked(value)) + check_box_label
     end
 
     def check_box_checked(value = "1")
       name = "#{@facet[:column_name]}_#{@facet[:type]}"
       selected = @facet[:object].send(name)
 
-      return (!selected.nil? and selected.include?(value))
+      if @facet[:type] == :cont_any
+        return (!selected.nil? and selected.include?(value))
+      else
+        return selected
+      end
 
     end
 
