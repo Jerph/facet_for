@@ -214,6 +214,11 @@ module FacetFor
         facet_html << text_field
       when :cont_any
         collection_type = :array
+
+        if @facet[:collection].nil?
+          @facet[:collection] = unique_value_collection
+        end
+
         if @facet[:collection].first.class == 'String'
           collection_type = :string
         end
@@ -277,7 +282,16 @@ module FacetFor
 
     def check_box(value = "1")
       name = "#{@facet[:column_name]}_#{@facet[:type]}"
-      return check_box_tag(self.name_for(name, true), value, check_box_checked(value))
+
+      if @facet[:type] == :cont_any
+        check_box_label =  label_tag(self.name_for(name, true),
+                                     value.to_s.humanize)
+      else
+        check_box_label =  label_tag(self.name_for(name, true),
+                                     @facet[:column_name].to_s.humanize)
+      end
+
+      check_box_tag(self.name_for(name, true), value, check_box_checked(value)) + check_box_label
     end
 
     def check_box_checked(value = "1")
@@ -292,6 +306,16 @@ module FacetFor
       name = "#{@facet[:column_name]}_eq"
       selected = @facet[:object].send(name)
 
+      # @facet[:collection] should be set if we've given it a valid
+      # association, or passed in a collection by hand.
+      #
+      # this assumes that we want to see all unique values from the database
+      # for the given column
+
+      if @facet[:collection].nil?
+        @facet[:collection] = unique_value_collection
+      end
+
       if @facet[:collection].class == Array and
           @facet[:collection].first.class == String
 
@@ -304,6 +328,10 @@ module FacetFor
                                            selected), :include_blank => true
       end
 
+    end
+
+    def unique_value_collection
+      @facet[:collection] = @facet[:model].select("DISTINCT #{@facet[:column_name]}").where("#{@facet[:column_name]} IS NOT NULL").map { |m| m.send(@facet[:column_name]) }
     end
 
     def label(string_name, string_label = nil)
