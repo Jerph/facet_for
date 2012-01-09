@@ -37,7 +37,8 @@ module FacetFor
 
     q.context.searchable_associations.each do |association|
       association_model = association.camelcase.singularize.constantize
-      column_options.push([association_model.to_s, options_for_model(association_model, association)])
+      column_options.push([association_model.to_s,
+                           options_for_model(association_model, association)])
     end
 
     column_options
@@ -96,13 +97,13 @@ module FacetFor
           x.primary_key_name == @facet[:column_name].to_s }.uniq and association.count > 0
 
           if association.first.macro == :has_many
-
             # For a has_many relationship, we want the plural name with _id.
             # Ransack will then look at the _id column for the associated model.
             # This won't work properly on models with nonstandard id column
             # names. That's a problem, but whatevs for the time being.
             @facet[:association_name] = "#{association.first.plural_name}"
             @facet[:column_name] = "#{association.first.plural_name}_id"
+            @facet[:clean_column_name] = "#{association.first.name.to_s.singularize}_id"
 
           elsif association.first.macro == :belongs_to
 
@@ -121,11 +122,11 @@ module FacetFor
           @facet[:type] = @facet[:type] || :collection
 
           # If the user hasn't specified a collection, we'll provide one now
-          # based on this association
+          # based on this association. We only want to use distinct values.
+          # This could probably be cleaner, but it works.
 
-          @facet[:collection] = @facet[:model].joins(@facet[:association_name].to_sym).select("DISTINCT #{@facet[:column_name]}").where("#{@facet[:column_name]} IS NOT NULL").map { |m| m.send(@facet[:association_name].to_sym) }
+          @facet[:collection] = @facet[:model].unscoped.joins(@facet[:association_name].to_sym).select("DISTINCT #{clean_column}").where("#{clean_column} IS NOT NULL").map { |m| @facet[:association_name].to_s.singularize.camelcase.constantize.find(m.send(clean_column))  }
 
-#          @facet[:collection] = @facet[:collection] || association.first.klass.all
         end
       else
 
@@ -349,8 +350,12 @@ module FacetFor
 
     end
 
+    def clean_column
+      @facet[:clean_column_name] || @facet[:column_name]
+    end
+
     def unique_value_collection
-      @facet[:collection] = @facet[:model].select("DISTINCT #{@facet[:column_name]}").where("#{@facet[:column_name]} IS NOT NULL").map { |m| m.send(@facet[:column_name]) }
+      @facet[:collection] = @facet[:model].unscoped.select("DISTINCT #{clean_column}").where("#{clean_column} IS NOT NULL").map { |m| m.send(@facet[:column_name]) }
     end
 
     def label(string_name, string_label = nil)

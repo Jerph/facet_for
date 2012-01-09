@@ -1,8 +1,0 @@
-h1. facet_for
-
-facet_for is a collection of FormBuilder helpers that speed up the process of
-creating complex search forms with "Ransack":http://github.com/ernie/ransack
-
-h2. Installation
-
-Simply include 'facet_for' in your Gemfile
