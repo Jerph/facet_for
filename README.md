@@ -53,7 +53,7 @@ When using ```:type => :collection``` on a column in the database, rather than a
 
 To pass specific options, use ```:collection => []``` to pass an array of options. This may either be a flat array of strings (eg ```['Blue', 'Red', 'Green']), a flat array of objects (```SomeModel.all```), or a nested array of name and value pairs.
 
-* Contains Any - ```:type => :cont_any```
+#### Contains Any
 
 ```:type => :cont_any``` behaves in a nearly identical manner to ```:type => :collection```, except that the collection is rendered as a series of check boxes rather than a ```collection_select```.
 
