@@ -14,7 +14,9 @@ module FacetFor
                 ['Between', :between],
                 ['Is Null', :null],
                 ['Is Not Null', :not_null],
-                ['Collection', :collection]
+                ['Collection', :collection],
+                ['Is True', :true],
+                ['Is False', :false]
                ]
 
   def self.predicates
@@ -101,6 +103,7 @@ module FacetFor
             # Ransack will then look at the _id column for the associated model.
             # This won't work properly on models with nonstandard id column
             # names. That's a problem, but whatevs for the time being.
+            @facet[:association_class]  = association.first.klass
             @facet[:association_name] = "#{association.first.plural_name}"
             @facet[:column_name] = "#{association.first.plural_name}_id"
             @facet[:clean_column_name] = "#{association.first.name.to_s.singularize}_id"
@@ -109,7 +112,7 @@ module FacetFor
 
             # If we're dealing with belongs_to, we can assume we just want
             # to look at the foreign key on the current model. Much simpler.
-
+            @facet[:association_class] = association.first.klass
             @facet[:association_name] = association.first.name
             @facet[:column_name] = association.first.foreign_key
 
@@ -125,7 +128,7 @@ module FacetFor
           # based on this association. We only want to use distinct values.
           # This could probably be cleaner, but it works.
 
-          @facet[:collection] = @facet[:model].unscoped.joins(@facet[:association_name].to_sym).select("DISTINCT #{clean_column}").where("#{clean_column} IS NOT NULL").map { |m| @facet[:association_name].to_s.singularize.camelcase.constantize.find(m.send(clean_column))  }
+          @facet[:collection] = @facet[:model].unscoped.joins(@facet[:association_name].to_sym).select("DISTINCT #{clean_column}").where("#{clean_column} IS NOT NULL").map { |m| @facet[:association_class].to_s.singularize.camelcase.constantize.find(m.send(clean_column))  }
 
         end
       else
