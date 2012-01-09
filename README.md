@@ -2,7 +2,7 @@
 
 facet_for is a collection of FormBuilder helpers that speed up the process of creating complex search forms with [Ransack](http://github.com/ernie/ransack).
 
-For many searches, it can be as simple as:
+For many searches, it can be as simple as adding this inside your ```search_form_for```:
 
 ```ruby
 <%= f.facet_for(:field_name) -%>
@@ -38,6 +38,12 @@ Most of the Ransack predicates are supported:
 * Less Than or Equal - ```:type => :lte```
 
 As well as several special cases and meta-predicates specific to facet_for:
+
+#### Between
+
+By default, when passing a ```date``` or ```datetime``` column to facet_for, it will use the ```:type => :between``` predicate.
+
+Rather than generating a single field, ```:type => :between``` creates one ```:type => :lte``` and one ```:type => :gte``` field with a single label. This makes searching ranges of dates or numbers painless.
 
 #### Collections
 
