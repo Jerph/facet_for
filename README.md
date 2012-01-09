@@ -47,9 +47,7 @@ Rather than generating a single field, ```:type => :between``` creates one ```:t
 
 #### Collections
 
-* Collection - ```:type => :collection```
-
-By default, when passing a ```has_many``` or ```belongs_to``` association into facet_for, it will choose the ```:collection``` predicate. This produces a ```collection_select``` with the unique options for that association.
+By default, when passing a ```has_many``` or ```belongs_to``` association into facet_for, it will choose the ```:type => :collection``` predicate. This produces a ```collection_select``` with the unique options for that association.
 
 When using ```:type => :collection``` on a column in the database, rather than an association, it defaults to all unique options.
 
