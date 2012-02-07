@@ -95,8 +95,7 @@ module FacetFor
 
         if association = associations.select { |x|
           x.plural_name == @facet[:column_name].to_s or
-          x.plural_name.singularize == @facet[:column_name].to_s or
-          x.primary_key_name == @facet[:column_name].to_s }.uniq and association.count > 0
+          x.plural_name.singularize == @facet[:column_name].to_s }.uniq and association.count > 0
 
           if association.first.macro == :has_many
             # For a has_many relationship, we want the plural name with _id.
