@@ -41,6 +41,9 @@ class ActionView::Helpers::FormBuilder
     # Are we labeling it differently?
     facet[:label] = options[:label]
 
+    # How about adding a class?
+    facet[:class] = options[:class]
+
     @facet = FacetFor::Facet.new(facet)
 
     facet_html << @facet.render_facet

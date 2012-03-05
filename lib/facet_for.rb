@@ -343,11 +343,12 @@ module FacetFor
 
         return select_tag self.name_for(name),
         options_for_select(@facet[:collection], selected),
-        :include_blank => true
+        :include_blank => true, :class => @facet[:class]
       else
         return select_tag self.name_for(name),
         options_from_collection_for_select(@facet[:collection], :id, :to_s,
-                                           selected), :include_blank => true
+                                           selected), :include_blank => true,
+        :class => @facet[:class]
       end
 
     end
