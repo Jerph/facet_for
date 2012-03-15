@@ -106,6 +106,7 @@ module FacetFor
             @facet[:association_name] = "#{association.first.plural_name}"
             @facet[:column_name] = "#{association.first.plural_name}_id"
             @facet[:clean_column_name] = "#{association.first.name.to_s.singularize}_id"
+            @facet[:association_primary_key] = association.first.primary_key_column.name
 
           elsif association.first.macro == :belongs_to
 
@@ -114,6 +115,7 @@ module FacetFor
             @facet[:association_class] = association.first.klass
             @facet[:association_name] = association.first.name
             @facet[:column_name] = association.first.foreign_key
+            @facet[:association_primary_key] = association.first.primary_key_column.name
 
           end
 
@@ -127,8 +129,11 @@ module FacetFor
           # based on this association. We only want to use distinct values.
           # This could probably be cleaner, but it works.
 
-          @facet[:collection] = @facet[:model].unscoped.joins(@facet[:association_name].to_sym).select("DISTINCT #{clean_column}").where("#{clean_column} IS NOT NULL").map { |m| @facet[:association_class].to_s.singularize.camelcase.constantize.find(m.send(clean_column))  }
+          unless @facet[:collection]
+            unique_objects = @facet[:model].unscoped.select("DISTINCT #{clean_column}").where("#{clean_column} IS NOT NULL").map { |x| x.send(clean_column) }.join(", ")
 
+            @facet[:collection] = @facet[:association_class].unscoped.where("#{@facet[:association_primary_key]} IN (#{unique_objects})")
+          end
         end
       else
 
@@ -358,7 +363,7 @@ module FacetFor
     end
 
     def unique_value_collection
-      @facet[:collection] = @facet[:model].unscoped.select("DISTINCT #{clean_column}").where("#{clean_column} IS NOT NULL").map { |m| m.send(@facet[:column_name]) }
+      @facet[:collection] = @facet[:model].unscoped.select("DISTINCT #{clean_column}").where("#{clean_column} IS NOT NULL").map { |x| x.send(clean_column) }
     end
 
     def label(string_name, string_label = nil)

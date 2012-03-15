@@ -23,6 +23,8 @@ class ActionView::Helpers::FormBuilder
     facet[:column_name] = column
     facet[:column_type] = options[:column_type]
 
+    facet[:includes] = options[:includes]
+
     # This is the type of field we will render. If this isn't provided, we'll
     # determine this based on facet_column_type
 
