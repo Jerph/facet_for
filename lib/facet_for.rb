@@ -132,7 +132,11 @@ module FacetFor
           unless @facet[:collection]
             unique_objects = @facet[:model].unscoped.select("DISTINCT #{clean_column}").where("#{clean_column} IS NOT NULL").map { |x| x.send(clean_column) }.join(", ")
 
-            @facet[:collection] = @facet[:association_class].unscoped.where("#{@facet[:association_primary_key]} IN (#{unique_objects})")
+            if unique_objects and unique_objects.length > 0
+              @facet[:collection] = @facet[:association_class].unscoped.where("#{@facet[:association_primary_key]} IN (#{unique_objects})")
+            else
+              @facet[:collection] = nil
+            end
           end
         end
       else
