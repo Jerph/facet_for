@@ -85,7 +85,7 @@ module FacetFor
         @facet[:model] = @facet[:object].klass
       end
 
-      @facet[:column] = @facet[:model].content_columns.select {                                      |x| x.name == @facet[:column_name].to_s }
+      @facet[:column] = @facet[:model].content_columns.select { |x| x.name == @facet[:column_name].to_s }
 
       if @facet[:column].empty? # facet doesn't exist
 
@@ -335,7 +335,12 @@ module FacetFor
 
     def facet_collection
       name = "#{@facet[:column_name]}_eq"
-      selected = @facet[:object].send(name)
+
+      if @facet[:default]
+        selected = @facet[:default]
+      else
+        selected = @facet[:object].send(name)
+      end
 
       # @facet[:collection] should be set if we've given it a valid
       # association, or passed in a collection by hand.

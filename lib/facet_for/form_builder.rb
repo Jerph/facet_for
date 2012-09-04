@@ -34,6 +34,10 @@ class ActionView::Helpers::FormBuilder
 
     facet[:params] = options[:params]
 
+    # Did we pass in a default value?
+
+    facet[:default] = options[:default]
+
     # In the specific case of facet_type == :collection, we'll allow the user
     # to specify their own collection. If it's an association, we'll attempt
     # to provide one.

@@ -18,6 +18,14 @@ Add ```gem 'facet_for'``` in your Gemfile
 
 Many options in facet_for can be overridden by passing hash options.
 
+### Labels
+
+To specify an alternate label, pass ```:label => 'Your Label Here'```.
+
+### Default Value
+
+To specify a default value for a ```:collection```, pass ```:default => 'Value Here'```
+
 ### Predicates
 
 To choose an alternate predicate, pass ```:type => :predicate```.
